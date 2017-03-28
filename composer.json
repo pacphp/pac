@@ -1,0 +1,15 @@
+{
+    "name": "pac/pac",
+    "type": "library",
+    "description": "PHP Api Core",
+    "keywords": ["framework", "http"],
+    "license": "MIT",
+    "require": {
+        "php": ">=7.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pac\\": "src/"
+        }
+    }
+}
