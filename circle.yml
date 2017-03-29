@@ -1,0 +1,8 @@
+machine:
+  timezone: UTC
+  php:
+    version: 7.1.0
+
+test:
+  override:
+    - vendor/bin/codecept run
