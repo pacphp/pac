@@ -6,10 +6,9 @@ namespace Pac\Middleware;
 use Exception;
 use GraphQL\GraphQL;
 use GraphQL\Schema;
-use GraphQL\Type\Definition\ObjectType;
-use GraphQL\Type\Definition\Type;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use Interop\Http\ServerMiddleware\MiddlewareInterface;
+use Oscar\GraphQL\AppContext;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Zend\Diactoros\Response\JsonResponse;
@@ -35,10 +34,19 @@ class GraphQLMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {
         try {
+            // TODO: this needs to be a closure
+            $appContext = new AppContext();
+            $appContext->request = $request;
+            $appContext->user = null; //active user
+
             $content = json_decode($request->getBody()->getContents(), true);
+            $content += ['query' => null, 'variables' => null];
             $result = GraphQL::execute(
                 $this->schema,
-                $content['query']
+                $content['query'],
+                null,
+                $appContext,
+                (array) $content['variables']
             );
 
         } catch (Exception $e) {
