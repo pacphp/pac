@@ -8,22 +8,88 @@ use Interop\Http\ServerMiddleware\DelegateInterface;
 use Pac\Pipe;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\Config\ConfigCache;
+use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Config\Loader\DelegatingLoader;
+use Symfony\Component\Config\Loader\GlobFileLoader;
 use Symfony\Component\Config\Loader\LoaderInterface;
-use Symfony\Component\HttpKernel\Bundle\BundleInterface;
-use Symfony\Component\HttpKernel\Kernel;
+use Symfony\Component\Config\Loader\LoaderResolver;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Dumper\PhpDumper;
+use Symfony\Component\DependencyInjection\Loader\ClosureLoader;
+use Symfony\Component\DependencyInjection\Loader\DirectoryLoader;
+use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
+use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
-abstract class PacKernel extends Kernel implements DelegateInterface
+abstract class PacKernel implements DelegateInterface
 {
+    protected $booted = false;
     protected $container;
     protected $environment;
+    protected $name;
     /** @var Pipe */
     protected $pipe;
     protected $pushedMiddleware = [];
     protected $rootDir;
 
+    /**
+     * Constructor.
+     *
+     * @param string $environment The environment
+     * @param bool   $debug       Whether to enable debugging or not
+     */
+    public function __construct($environment, $debug)
+    {
+        $this->environment = $environment;
+        $this->debug = (bool) $debug;
+        $this->rootDir = $this->getRootDir();
+        $this->name = $this->getName();
+
+        if ($this->debug) {
+            $this->startTime = microtime(true);
+        }
+    }
+
+    public function getCacheDir()
+    {
+        return $this->rootDir.'/cache/'.$this->environment;
+    }
+
+    public function getCharset()
+    {
+        return 'UTF-8';
+    }
+
+    public function getLogDir()
+    {
+        return $this->rootDir.'/logs';
+    }
+
+    public function getName()
+    {
+        if (null === $this->name) {
+            $this->name = preg_replace('/[^a-zA-Z0-9_]+/', '', basename($this->rootDir));
+            if (ctype_digit($this->name[0])) {
+                $this->name = '_'.$this->name;
+            }
+        }
+
+        return $this->name;
+    }
+
+    public function getRootDir()
+    {
+        if (null === $this->rootDir) {
+            $r = new \ReflectionObject($this);
+            $this->rootDir = dirname($r->getFileName());
+        }
+
+        return $this->rootDir;
+    }
+
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
-        // TODO: use DOTENV
         $loader->load($this->rootDir . '/config/config_' . $this->environment . '.yml');
     }
 
@@ -57,24 +123,10 @@ abstract class PacKernel extends Kernel implements DelegateInterface
         return $this;
     }
 
-    /**
-     * Returns an array of bundles to register.
-     *
-     * @return BundleInterface[] An array of bundle instances
-     */
-    public function registerBundles()
-    {
-        // TODO: Remove
-    }
-
     public function boot()
     {
         if (true === $this->booted) {
             return;
-        }
-
-        if ($this->loadClassCache) {
-            $this->doLoadClassCache($this->loadClassCache[0], $this->loadClassCache[1]);
         }
 
         // init container
@@ -175,5 +227,159 @@ abstract class PacKernel extends Kernel implements DelegateInterface
         echo $response->getBody()->getContents();
 
         return $this;
+    }
+
+    /**
+     * Use this method to register compiler passes and manipulate the container during the building process.
+     */
+    protected function build(ContainerBuilder $container)
+    {
+    }
+
+    protected function buildContainer(): ContainerBuilder
+    {
+        foreach (array('cache' => $this->getCacheDir(), 'logs' => $this->getLogDir()) as $name => $dir) {
+            if (!is_dir($dir)) {
+                if (false === @mkdir($dir, 0777, true) && !is_dir($dir)) {
+                    throw new \RuntimeException(sprintf("Unable to create the %s directory (%s)\n", $name, $dir));
+                }
+            } elseif (!is_writable($dir)) {
+                throw new \RuntimeException(sprintf("Unable to write in the %s directory (%s)\n", $name, $dir));
+            }
+        }
+
+        $container = $this->getContainerBuilder();
+        $container->addObjectResource($this);
+        $this->prepareContainer($container);
+
+        if (null !== $cont = $this->registerContainerConfiguration($this->getContainerLoader($container))) {
+            $container->merge($cont);
+        }
+
+        return $container;
+    }
+
+    /**
+     * Dumps the service container to PHP code in the cache.
+     *
+     * @param ConfigCache      $cache     The config cache
+     * @param ContainerBuilder $container The service container
+     * @param string           $class     The name of the class to generate
+     * @param string           $baseClass The name of the container's base class
+     */
+    protected function dumpContainer(ConfigCache $cache, ContainerBuilder $container, $class, $baseClass)
+    {
+        // cache the container
+        $dumper = new PhpDumper($container);
+
+        if (class_exists('ProxyManager\Configuration') && class_exists('Symfony\Bridge\ProxyManager\LazyProxy\PhpDumper\ProxyDumper')) {
+            $dumper->setProxyDumper(new ProxyDumper(md5($cache->getPath())));
+        }
+
+        $content = $dumper->dump(array('class' => $class, 'base_class' => $baseClass, 'file' => $cache->getPath(), 'debug' => $this->debug));
+
+        $cache->write($content, $container->getResources());
+    }
+
+    /**
+     * Gets the container's base class.
+     *
+     * All names except Container must be fully qualified.
+     */
+    protected function getContainerBaseClass(): string
+    {
+        return 'Container';
+    }
+
+    /**
+     * Gets a new ContainerBuilder instance used to build the service container.
+     */
+    protected function getContainerBuilder(): ContainerBuilder
+    {
+        $container = new ContainerBuilder();
+        $container->getParameterBag()->add($this->getKernelParameters());
+
+        if (class_exists('ProxyManager\Configuration') && class_exists('Symfony\Bridge\ProxyManager\LazyProxy\Instantiator\RuntimeInstantiator')) {
+            $container->setProxyInstantiator(new RuntimeInstantiator());
+        }
+
+        return $container;
+    }
+
+    /**
+     * Gets the container class.
+     */
+    protected function getContainerClass(): string
+    {
+        return $this->name.ucfirst($this->environment).($this->debug ? 'Debug' : '').'ProjectContainer';
+    }
+
+    protected function getContainerLoader(ContainerBuilder $containerBuilder): DelegatingLoader
+    {
+        $locator = new FileLocator();
+        $resolver = new LoaderResolver(
+            [
+                new YamlFileLoader($containerBuilder, $locator),
+                new PhpFileLoader($containerBuilder, $locator),
+                new GlobFileLoader($locator),
+                new DirectoryLoader($containerBuilder, $locator),
+                new ClosureLoader($containerBuilder),
+            ]
+        );
+
+        return new DelegatingLoader($resolver);
+    }
+
+    protected function getKernelParameters(): array
+    {
+        return [
+            'kernel.root_dir'        => realpath($this->rootDir) ?: $this->rootDir,
+            'kernel.environment'     => $this->environment,
+            'kernel.debug'           => $this->debug,
+            'kernel.name'            => $this->name,
+            'kernel.cache_dir'       => realpath($this->getCacheDir()) ?: $this->getCacheDir(),
+            'kernel.logs_dir'        => realpath($this->getLogDir()) ?: $this->getLogDir(),
+            'kernel.charset'         => $this->getCharset(),
+            'kernel.container_class' => $this->getContainerClass(),
+        ];
+    }
+
+    /**
+     * Initializes the service container.
+     *
+     * The cached version of the service container is used when fresh, otherwise the
+     * container is built.
+     */
+    protected function initializeContainer()
+    {
+        $class = $this->getContainerClass();
+        $cache = new ConfigCache($this->getCacheDir().'/'.$class.'.php', $this->debug);
+        $fresh = true;
+        if (!$cache->isFresh()) {
+            $container = $this->buildContainer();
+            $container->compile();
+            $this->dumpContainer($cache, $container, $class, $this->getContainerBaseClass());
+
+            $fresh = false;
+        }
+
+        require_once $cache->getPath();
+
+        $this->container = new $class();
+        $this->container->set('kernel', $this);
+
+        if (!$fresh && $this->container->has('cache_warmer')) {
+            $this->container->get('cache_warmer')->warmUp($this->container->getParameter('kernel.cache_dir'));
+        }
+    }
+
+    /**
+     * Prepares the ContainerBuilder before it is compiled.
+     *
+     * @param ContainerBuilder $container A ContainerBuilder instance
+     */
+    protected function prepareContainer(ContainerBuilder $container)
+    {
+        $this->build($container);
     }
 }
