@@ -5,6 +5,7 @@ namespace Pac\App;
 
 use DateTime;
 use Interop\Http\ServerMiddleware\DelegateInterface;
+use Pac\DependencyInjection\Extension\MiddlewareExtension;
 use Pac\Pipe;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -132,7 +133,7 @@ abstract class PacKernel implements DelegateInterface
         // init container
         $this->initializeContainer();
 
-        $this->pipe = new Pipe(); // todo: load middleware from config
+        $this->pipe = $this->container->get('kernel.pipe');
 
         foreach ($this->pushedMiddleware as $middleware) {
             $this->pipe->pipe($middleware);
@@ -250,6 +251,9 @@ abstract class PacKernel implements DelegateInterface
 
         $container = $this->getContainerBuilder();
         $container->addObjectResource($this);
+
+        $container->registerExtension(new MiddlewareExtension());
+
         $this->prepareContainer($container);
 
         if (null !== $cont = $this->registerContainerConfiguration($this->getContainerLoader($container))) {
