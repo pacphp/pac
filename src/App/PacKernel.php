@@ -52,7 +52,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function getCacheDir()
     {
-        return $this->rootDir . '/cache/' . $this->environment;
+        return $this->getVarDir() . '/cache/' . $this->environment;
     }
 
     public function getCharset()
@@ -62,7 +62,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function getLogDir()
     {
-        return $this->rootDir . '/logs';
+        return $this->getVarDir() . '/logs';
     }
 
     public function getName()
@@ -90,6 +90,11 @@ abstract class PacKernel implements DelegateInterface
     public function getConfigDir()
     {
         return $this->getAppDir() . '/config';
+    }
+
+    public function getVarDir()
+    {
+        return $this->rootDir . '/var';
     }
 
     public function getRootDir()
