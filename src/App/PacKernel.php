@@ -16,15 +16,16 @@ use Symfony\Component\Config\Loader\GlobFileLoader;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Config\Loader\LoaderResolver;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Dumper\PhpDumper;
 use Symfony\Component\DependencyInjection\Loader\ClosureLoader;
 use Symfony\Component\DependencyInjection\Loader\DirectoryLoader;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\Dotenv\Dotenv;
 
 abstract class PacKernel implements DelegateInterface
 {
+    protected $appDir;
     protected $booted = false;
     protected $container;
     protected $environment;
@@ -34,18 +35,15 @@ abstract class PacKernel implements DelegateInterface
     protected $pushedMiddleware = [];
     protected $rootDir;
 
-    /**
-     * Constructor.
-     *
-     * @param string $environment The environment
-     * @param bool   $debug       Whether to enable debugging or not
-     */
-    public function __construct($environment, $debug)
+    public function __construct($dotenvFile = '.env')
     {
-        $this->environment = $environment;
-        $this->debug = (bool) $debug;
         $this->rootDir = $this->getRootDir();
         $this->name = $this->getName();
+        $dotenv = new Dotenv();
+        $dotenv->load($this->rootDir . '/' . $dotenvFile);
+
+        $this->environment = getenv('ENV') ?: 'prod';
+        $this->debug = (bool) getenv('DEBUG');
 
         if ($this->debug) {
             $this->startTime = microtime(true);
@@ -54,7 +52,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function getCacheDir()
     {
-        return $this->rootDir.'/cache/'.$this->environment;
+        return $this->rootDir . '/cache/' . $this->environment;
     }
 
     public function getCharset()
@@ -64,7 +62,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function getLogDir()
     {
-        return $this->rootDir.'/logs';
+        return $this->rootDir . '/logs';
     }
 
     public function getName()
@@ -79,11 +77,25 @@ abstract class PacKernel implements DelegateInterface
         return $this->name;
     }
 
+    public function getAppDir()
+    {
+        if (null === $this->appDir) {
+            $r = new \ReflectionObject($this);
+            $this->appDir = dirname($r->getFileName());
+        }
+
+        return $this->appDir;
+    }
+
+    public function getConfigDir()
+    {
+        return $this->getAppDir() . '/config';
+    }
+
     public function getRootDir()
     {
         if (null === $this->rootDir) {
-            $r = new \ReflectionObject($this);
-            $this->rootDir = dirname($r->getFileName());
+            $this->rootDir = dirname($this->getAppDir());
         }
 
         return $this->rootDir;
@@ -91,7 +103,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
-        $loader->load($this->rootDir . '/config/config_' . $this->environment . '.yml');
+        $loader->load($this->getConfigDir() . '/config.yml');
     }
 
     /**
@@ -337,14 +349,15 @@ abstract class PacKernel implements DelegateInterface
     protected function getKernelParameters(): array
     {
         return [
-            'kernel.root_dir'        => realpath($this->rootDir) ?: $this->rootDir,
-            'kernel.environment'     => $this->environment,
-            'kernel.debug'           => $this->debug,
-            'kernel.name'            => $this->name,
+            'kernel.app_dir'         => realpath($this->getAppDir()) ?: $this->getAppDir(),
             'kernel.cache_dir'       => realpath($this->getCacheDir()) ?: $this->getCacheDir(),
-            'kernel.logs_dir'        => realpath($this->getLogDir()) ?: $this->getLogDir(),
             'kernel.charset'         => $this->getCharset(),
             'kernel.container_class' => $this->getContainerClass(),
+            'kernel.debug'           => $this->debug,
+            'kernel.environment'     => $this->environment,
+            'kernel.logs_dir'        => realpath($this->getLogDir()) ?: $this->getLogDir(),
+            'kernel.root_dir'        => realpath($this->rootDir) ?: $this->rootDir,
+            'kernel.name'            => $this->name,
         ];
     }
 
