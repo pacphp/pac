@@ -17,6 +17,8 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Config\Loader\LoaderResolver;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Dumper\PhpDumper;
+use Symfony\Component\DependencyInjection\Extension\Extension;
+use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\ClosureLoader;
 use Symfony\Component\DependencyInjection\Loader\DirectoryLoader;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
@@ -29,6 +31,8 @@ abstract class PacKernel implements DelegateInterface
     protected $booted = false;
     protected $container;
     protected $environment;
+    /** @var Extension[] */
+    protected $extensions;
     protected $name;
     /** @var Pipe */
     protected $pipe;
@@ -48,6 +52,15 @@ abstract class PacKernel implements DelegateInterface
         if ($this->debug) {
             $this->startTime = microtime(true);
         }
+
+        foreach ($this->appendedExtensions() as $extension) {
+            $this->appendExtension($extension);
+        }
+    }
+
+    public function appendExtension(ExtensionInterface $extension)
+    {
+        $this->extensions[] = $extension;
     }
 
     public function getCacheDir()
@@ -247,6 +260,11 @@ abstract class PacKernel implements DelegateInterface
         return $this;
     }
 
+    protected function appendedExtensions(): array
+    {
+        return [];
+    }
+
     /**
      * Use this method to register compiler passes and manipulate the container during the building process.
      */
@@ -269,7 +287,12 @@ abstract class PacKernel implements DelegateInterface
         $container = $this->getContainerBuilder();
         $container->addObjectResource($this);
 
+
         $container->registerExtension(new MiddlewareExtension());
+
+        foreach ($this->extensions as $extension) {
+            $container->registerExtension($extension);
+        }
 
         $this->prepareContainer($container);
 
@@ -357,6 +380,7 @@ abstract class PacKernel implements DelegateInterface
             'kernel.app_dir'         => realpath($this->getAppDir()) ?: $this->getAppDir(),
             'kernel.cache_dir'       => realpath($this->getCacheDir()) ?: $this->getCacheDir(),
             'kernel.charset'         => $this->getCharset(),
+            'kernel.config_dir'      => realpath($this->getConfigDir()) ?: $this->getConfigDir(),
             'kernel.container_class' => $this->getContainerClass(),
             'kernel.debug'           => $this->debug,
             'kernel.environment'     => $this->environment,
