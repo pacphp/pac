@@ -8,7 +8,7 @@
         "http-interop/http-factory-diactoros": "^0.2.0",
         "http-interop/http-middleware": "dev-master",
         "php": ">=7.1",
-        "webonyx/graphql-php": "^0.9",
+        "youshido/graphql": "2.0.x-dev",
         "zendframework/zend-diactoros": "^1.3"
     },
     "require-dev": {
