@@ -5,6 +5,7 @@ namespace Pac\App;
 
 use DateTime;
 use Interop\Http\ServerMiddleware\DelegateInterface;
+use Psr\Container\ContainerInterface;
 use Pac\DependencyInjection\Extension\MiddlewareExtension;
 use Pac\Pipe;
 use Psr\Http\Message\ResponseInterface;
@@ -27,9 +28,13 @@ use Symfony\Component\Dotenv\Dotenv;
 
 abstract class PacKernel implements DelegateInterface
 {
+    const VERSION = '0.0.1';
+
     protected $appDir;
     protected $booted = false;
+    /** @var ContainerInterface */
     protected $container;
+    protected $debug;
     protected $environment;
     /** @var Extension[] */
     protected $extensions;
@@ -71,6 +76,21 @@ abstract class PacKernel implements DelegateInterface
     public function getCharset()
     {
         return 'UTF-8';
+    }
+
+    public function getContainer(): ContainerInterface
+    {
+        return $this->container;
+    }
+
+    public function getEnvironment(): string
+    {
+        return $this->environment;
+    }
+
+    public function isDebug(): bool
+    {
+        return $this->debug;
     }
 
     public function getLogDir()
