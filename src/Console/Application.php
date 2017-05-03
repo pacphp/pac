@@ -32,6 +32,7 @@ class Application extends BaseApplication
     {
         $this->kernel->boot();
         $container = $this->kernel->getContainer();
+
         foreach ($this->all() as $command) {
             if ($command instanceof ContainerAwareInterface) {
                 $command->setContainer($container);

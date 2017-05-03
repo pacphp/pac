@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 namespace Pac\DependencyInjection\Extension;
 
+use Pac\Factory\CommandFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
-use Symfony\Component\DependencyInjection\Reference;
 
 class CommandExtension implements ExtensionInterface
 {
@@ -13,6 +14,17 @@ class CommandExtension implements ExtensionInterface
     {
         $config = call_user_func_array('array_merge', $configs);
 
+        $commands = [];
+        foreach ($config as $command) {
+            $commandDefinition = (new Definition($command));
+            $containerBuilder->setDefinition($command, $commandDefinition);
+            $commands[] = $command;
+        }
+        $definition = (new Definition(CommandFactory::class))
+            ->setFactory([CommandFactory::class, 'create'])
+            ->setArguments([$commands])
+        ;
+        $containerBuilder->setDefinition('console.commands', $definition);
 
         return $containerBuilder;
     }
