@@ -110,7 +110,7 @@ abstract class PacKernel implements DelegateInterface
         return $this->name;
     }
 
-    public function getAppDir()
+    public function getEtcDir()
     {
         if (null === $this->appDir) {
             $r = new \ReflectionObject($this);
@@ -122,7 +122,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function getConfigDir()
     {
-        return $this->getAppDir() . '/config';
+        return $this->getEtcDir() . '/config';
     }
 
     public function getVarDir()
@@ -133,7 +133,7 @@ abstract class PacKernel implements DelegateInterface
     public function getRootDir()
     {
         if (null === $this->rootDir) {
-            $this->rootDir = dirname($this->getAppDir());
+            $this->rootDir = dirname($this->getEtcDir());
         }
 
         return $this->rootDir;
@@ -397,13 +397,13 @@ abstract class PacKernel implements DelegateInterface
     protected function getKernelParameters(): array
     {
         return [
-            'kernel.app_dir'         => realpath($this->getAppDir()) ?: $this->getAppDir(),
             'kernel.cache_dir'       => realpath($this->getCacheDir()) ?: $this->getCacheDir(),
             'kernel.charset'         => $this->getCharset(),
             'kernel.config_dir'      => realpath($this->getConfigDir()) ?: $this->getConfigDir(),
             'kernel.container_class' => $this->getContainerClass(),
             'kernel.debug'           => $this->debug,
             'kernel.environment'     => $this->environment,
+            'kernel.etc_dir'         => realpath($this->getEtcDir()) ?: $this->getEtcDir(),
             'kernel.logs_dir'        => realpath($this->getLogDir()) ?: $this->getLogDir(),
             'kernel.root_dir'        => realpath($this->rootDir) ?: $this->rootDir,
             'kernel.name'            => $this->name,
