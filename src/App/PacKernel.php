@@ -112,12 +112,7 @@ abstract class PacKernel implements DelegateInterface
 
     public function getEtcDir()
     {
-        if (null === $this->appDir) {
-            $r = new \ReflectionObject($this);
-            $this->appDir = dirname($r->getFileName());
-        }
-
-        return $this->appDir;
+        return $this->getRootDir() . '/etc';
     }
 
     public function getConfigDir()
@@ -127,13 +122,14 @@ abstract class PacKernel implements DelegateInterface
 
     public function getVarDir()
     {
-        return $this->rootDir . '/var';
+        return $this->getRootDir() . '/var';
     }
 
     public function getRootDir()
     {
         if (null === $this->rootDir) {
-            $this->rootDir = dirname($this->getEtcDir());
+            $r = new \ReflectionObject($this);
+            $this->rootDir = realpath(dirname($r->getFileName())  . '/..');
         }
 
         return $this->rootDir;
