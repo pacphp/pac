@@ -93,11 +93,6 @@ abstract class PacKernel implements DelegateInterface
         return $this->debug;
     }
 
-    public function getLogDir()
-    {
-        return $this->getVarDir() . '/logs';
-    }
-
     public function getName()
     {
         if (null === $this->name) {
@@ -110,14 +105,24 @@ abstract class PacKernel implements DelegateInterface
         return $this->name;
     }
 
+    public function getConfigDir()
+    {
+        return $this->getEtcDir() . '/config';
+    }
+
     public function getEtcDir()
     {
         return $this->getRootDir() . '/etc';
     }
 
-    public function getConfigDir()
+    public function getLogDir()
     {
-        return $this->getEtcDir() . '/config';
+        return $this->getVarDir() . '/logs';
+    }
+
+    public function getSrcDir()
+    {
+        return $this->getRootDir() . '/src';
     }
 
     public function getVarDir()
@@ -401,8 +406,9 @@ abstract class PacKernel implements DelegateInterface
             'kernel.environment'     => $this->environment,
             'kernel.etc_dir'         => realpath($this->getEtcDir()) ?: $this->getEtcDir(),
             'kernel.logs_dir'        => realpath($this->getLogDir()) ?: $this->getLogDir(),
-            'kernel.root_dir'        => realpath($this->rootDir) ?: $this->rootDir,
             'kernel.name'            => $this->name,
+            'kernel.root_dir'        => realpath($this->rootDir) ?: $this->rootDir,
+            'kernel.src_dir'         => realpath($this->getSrcDir()) ?: $this->getSrcDir(),
         ];
     }
 
