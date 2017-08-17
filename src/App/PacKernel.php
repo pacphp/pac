@@ -5,6 +5,8 @@ namespace Pac\App;
 
 use DateTime;
 use Interop\Http\ServerMiddleware\DelegateInterface;
+use Pac\DependencyInjection\Extension\CommandExtension;
+use Pac\DependencyInjection\Extension\LoggerExtension;
 use Psr\Container\ContainerInterface;
 use Pac\DependencyInjection\Extension\MiddlewareExtension;
 use Pac\Pipe;
@@ -193,7 +195,6 @@ abstract class PacKernel implements DelegateInterface
         $this->booted = true;
     }
 
-
     /**
      * Sends HTTP headers and content.
      *
@@ -308,8 +309,10 @@ abstract class PacKernel implements DelegateInterface
         $container = $this->getContainerBuilder();
         $container->addObjectResource($this);
 
-
-        $container->registerExtension(new MiddlewareExtension());
+        $kernelExtensions = $this->getKernelExtensions();
+        foreach ($kernelExtensions as $extension) {
+            $container->registerExtension($extension);
+        }
 
         foreach ($this->extensions as $extension) {
             $container->registerExtension($extension);
@@ -393,6 +396,15 @@ abstract class PacKernel implements DelegateInterface
         );
 
         return new DelegatingLoader($resolver);
+    }
+
+    protected function getKernelExtensions(): array
+    {
+        return [
+            new CommandExtension(),
+            new LoggerExtension(),
+            new MiddlewareExtension(),
+        ];
     }
 
     protected function getKernelParameters(): array
