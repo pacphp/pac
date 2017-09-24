@@ -4,7 +4,8 @@ declare(strict_types = 1);
 namespace Pac\App;
 
 use DateTime;
-use Interop\Http\ServerMiddleware\DelegateInterface;
+use Exception;
+use Interop\Http\Server\RequestHandlerInterface;
 use Pac\DependencyInjection\Extension\CommandExtension;
 use Pac\DependencyInjection\Extension\LoggerExtension;
 use Psr\Container\ContainerInterface;
@@ -28,9 +29,9 @@ use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\Dotenv\Dotenv;
 
-abstract class PacKernel implements DelegateInterface
+abstract class PacKernel implements RequestHandlerInterface
 {
-    const VERSION = '0.0.1';
+    const VERSION = '0.0.2';
 
     protected $appDir;
     protected $booted = false;
@@ -150,18 +151,18 @@ abstract class PacKernel implements DelegateInterface
     /**
      * Process an incoming server request and return a response, optionally delegating
      * to the next middleware component to create the response.
-     *
-     * @param ServerRequestInterface $request
-     *
-     * @return ResponseInterface
      */
-    public function process(ServerRequestInterface $request): ResponseInterface
+    public function handle(ServerRequestInterface $request): ResponseInterface
     {
         if (false === $this->booted) {
             $this->boot();
         }
 
-        return $this->pipe->process($request);
+        try {
+            return $this->pipe->handle($request);
+        } catch (Exception $e) {
+            $this->getContainer()->get('logger')->error($e);
+        }
     }
 
     public function push(/*$kernelClass, $args...*/)

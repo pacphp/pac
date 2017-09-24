@@ -3,12 +3,12 @@ declare(strict_types = 1);
 
 namespace Pac;
 
-use Interop\Http\ServerMiddleware\DelegateInterface;
-use Interop\Http\ServerMiddleware\MiddlewareInterface;
+use Interop\Http\Server\MiddlewareInterface;
+use Interop\Http\Server\RequestHandlerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class Pipe implements DelegateInterface
+class Pipe implements RequestHandlerInterface
 {
     protected $middleware = [];
     protected $position = 0;
@@ -27,12 +27,8 @@ class Pipe implements DelegateInterface
 
     /**
      * Dispatch the next available middleware and return the response.
-     *
-     * @param ServerRequestInterface $request
-     *
-     * @return ResponseInterface
      */
-    public function process(ServerRequestInterface $request): ResponseInterface
+    public function handle(ServerRequestInterface $request): ResponseInterface
     {
         if (empty($this->middleware[$this->position])) {
             throw new \RuntimeException('Pipeline ended without returning any Psr\\Http\\Message\\ResponseInterface');
