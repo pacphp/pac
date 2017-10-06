@@ -7,6 +7,7 @@ use DateTime;
 use Exception;
 use Interop\Http\Server\RequestHandlerInterface;
 use Pac\DependencyInjection\Extension\CommandExtension;
+use Pac\DependencyInjection\Extension\FilesystemExtension;
 use Pac\DependencyInjection\Extension\LoggerExtension;
 use Psr\Container\ContainerInterface;
 use Pac\DependencyInjection\Extension\MiddlewareExtension;
@@ -405,6 +406,7 @@ abstract class PacKernel implements RequestHandlerInterface
             new CommandExtension(),
             new LoggerExtension(),
             new MiddlewareExtension(),
+            new FilesystemExtension(),
         ];
     }
 
