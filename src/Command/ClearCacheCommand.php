@@ -19,11 +19,25 @@ class ClearCacheCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $cacheDir = $this->getContainer()->getParameter('kernel.cache_dir');
-        $files = glob($cacheDir . '/*');
-        foreach ($files as $file) {
-            if(is_file($file)) {
-                unlink($file);
+        $cacheDirectory = $this->getContainer()->getParameter('kernel.cache_dir');
+
+        $this->clearDirectory($cacheDirectory);
+
+        $output->writeln('<info>The cache was cleared</info>');
+    }
+
+    private function clearDirectory(string $directory)
+    {
+        $paths = glob($directory . '/*');
+        foreach ($paths as $path) {
+            if (is_file($path)) {
+                unlink($path);
+
+                continue;
+            }
+            if (is_dir($path)) {
+                $this->clearDirectory($path);
+                rmdir($path);
             }
         }
     }
