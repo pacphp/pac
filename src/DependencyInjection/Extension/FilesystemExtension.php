@@ -15,11 +15,17 @@ class FilesystemExtension implements ExtensionInterface
     {
         $config = call_user_func_array('array_merge', $configs);
 
-        $definition = (new Definition(Filesystem::class))
-            ->setFactory([FilesystemFactory::class, 'create'])
-            ->setArguments([$config])
-        ;
-        $container->setDefinition('filesystem', $definition);
+        foreach ($config as $label => $arguments) {
+            $definition = (new Definition(Filesystem::class))
+                ->setFactory([FilesystemFactory::class, 'create'])
+                ->setArguments([$arguments]);
+            if ($label !== 'default') {
+                $definitionName = 'filesystem.' . $label;
+            } else {
+                $definitionName = 'filesystem';
+            }
+            $container->setDefinition($definitionName, $definition);
+        }
 
         return $container;
     }
