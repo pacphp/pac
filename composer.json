@@ -6,7 +6,8 @@
     "license": "MIT",
     "require": {
         "http-interop/http-factory-diactoros": "^0.2.0",
-        "http-interop/http-middleware": "^0.5.0",
+        "http-interop/http-server-handler": "^1.0",
+        "http-interop/http-server-middleware": "^1.0",
         "monolog/monolog": "^1.23",
         "php": ">=7.1",
         "symfony/config": "^3.3.0",
